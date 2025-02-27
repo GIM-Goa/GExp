@@ -1,0 +1,92 @@
+import pygame
+import math
+import random
+
+# Constants
+WIDTH, HEIGHT = 600, 600
+BG_COLOR = (30, 30, 30)
+BALL_COLOR = (255, 100, 100)
+HEX_COLOR = (100, 255, 100)
+BALL_RADIUS = 10
+GRAVITY = 0.3
+FRICTION = 0.99
+HEX_RADIUS = 200
+ROTATION_SPEED = 1  # Degrees per frame
+
+# Initialize Pygame
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+clock = pygame.time.Clock()
+
+# Ball properties
+ball_x, ball_y = WIDTH // 2, HEIGHT // 4
+ball_vx, ball_vy = random.uniform(-2, 2), random.uniform(-2, 2)
+
+def get_hexagon_vertices(center_x, center_y, radius, angle_offset):
+    """Returns the vertices of a hexagon given a center, radius, and rotation angle."""
+    vertices = []
+    for i in range(6):
+        angle = math.radians(i * 60 + angle_offset)
+        x = center_x + radius * math.cos(angle)
+        y = center_y + radius * math.sin(angle)
+        vertices.append((x, y))
+    return vertices
+
+def reflect(velocity, normal):
+    """Reflects a velocity vector against a given normal vector."""
+    dot_product = velocity[0] * normal[0] + velocity[1] * normal[1]
+    reflected_vx = velocity[0] - 2 * dot_product * normal[0]
+    reflected_vy = velocity[1] - 2 * dot_product * normal[1]
+    return reflected_vx, reflected_vy
+
+running = True
+angle = 0  # Rotation angle of the hexagon
+
+while running:
+    screen.fill(BG_COLOR)
+    angle += ROTATION_SPEED  # Rotate hexagon
+    
+    # Get hexagon vertices
+    hex_vertices = get_hexagon_vertices(WIDTH // 2, HEIGHT // 2, HEX_RADIUS, angle)
+    
+    # Draw hexagon
+    pygame.draw.polygon(screen, HEX_COLOR, hex_vertices, 2)
+    
+    # Draw ball
+    pygame.draw.circle(screen, BALL_COLOR, (int(ball_x), int(ball_y)), BALL_RADIUS)
+    
+    # Update ball movement
+    ball_vy += GRAVITY  # Apply gravity
+    ball_vx *= FRICTION
+    ball_vy *= FRICTION
+    ball_x += ball_vx
+    ball_y += ball_vy
+    
+    # Collision detection with hexagon walls
+    for i in range(6):
+        p1 = hex_vertices[i]
+        p2 = hex_vertices[(i + 1) % 6]
+        
+        # Edge vector
+        edge_vector = (p2[0] - p1[0], p2[1] - p1[1])
+        edge_length = math.sqrt(edge_vector[0] ** 2 + edge_vector[1] ** 2)
+        edge_normal = (-edge_vector[1] / edge_length, edge_vector[0] / edge_length)
+        
+        # Distance of ball from edge
+        ball_to_edge = ((ball_x - p1[0]), (ball_y - p1[1]))
+        distance = abs(ball_to_edge[0] * edge_normal[0] + ball_to_edge[1] * edge_normal[1])
+        
+        if distance < BALL_RADIUS:
+            # Reflect velocity
+            ball_vx, ball_vy = reflect((ball_vx, ball_vy), edge_normal)
+            break  # Avoid multiple reflections per frame
+
+    pygame.display.flip()
+    clock.tick(60)
+
+    # Check for exit
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+pygame.quit()
